@@ -1,8 +1,8 @@
-# Bazzarify Ansible Deployment
+# Ansible Deployment
 
 ## Overview
 This repository provides a thin orchestration layer around two repeatable tasks:
-1. Build multi-architecture Docker images for Bazzarify services with `docker buildx`.
+1. Build multi-architecture Docker images for services with `docker buildx`.
 2. Deploy already-built images to one or more remote hosts via an Ansible playbook that pulls the images, runs `docker compose up`, and prunes unused artifacts.
 
 Use the helper scripts in `run.py` to interactively build, deploy, or do both in sequence, or call the underlying modules directly when you need tighter control in CI.
