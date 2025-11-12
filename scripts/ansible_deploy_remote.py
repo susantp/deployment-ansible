@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-import os
-import sys
 import json
 import subprocess
+import sys
 from pathlib import Path
+
 from scripts.utils import load_env
 
 
