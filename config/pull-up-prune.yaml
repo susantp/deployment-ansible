@@ -1,0 +1,26 @@
+---
+- name: Deploy Docker stack remotely
+  hosts: remote
+  become: yes
+
+  tasks:
+    - name: Change to deployment directory
+      ansible.builtin.shell: cd {{ deploy_dir }}
+      args:
+        chdir: "{{ deploy_dir }}"
+
+    - name: Pull specified Docker images
+      ansible.builtin.shell: docker image pull {{ item }}
+      with_items: "{{ docker_images }}"
+      args:
+        chdir: "{{ deploy_dir }}"
+
+    - name: Bring up Docker services
+      ansible.builtin.shell: docker compose up -d
+      args:
+        chdir: "{{ deploy_dir }}"
+
+    - name: Prune unused Docker data
+      ansible.builtin.shell: docker system prune -f
+      args:
+        chdir: "{{ deploy_dir }}"
