@@ -19,6 +19,13 @@
       ansible.builtin.shell: docker compose up -d
       args:
         chdir: "{{ deploy_dir }}"
+      register: compose_up
+    
+    - name: Run migrations if frankenphp container was recreated
+      ansible.builtin.shell: docker compose exec frankenphp php artisan migrate --force
+      args:
+        chdir: "{{ deploy_dir }}"
+      when: compose_up.stdout is search("frankenphp") or compose_up.stderr is search("frankenphp")
 
     - name: Prune unused Docker data
       ansible.builtin.shell: docker system prune -f
