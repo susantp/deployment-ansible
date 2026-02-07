@@ -23,11 +23,12 @@ def build_service(service_name: str, platform_arch: str):
     # Context paths (override via .env if needed)
     context_map = {
         "nginx": get_env_or_default("CONTEXT_NGINX", ""),
+        "redis": get_env_or_default("CONTEXT_REDIS", ""),
         "consumer": get_env_or_default("CONTEXT_CONSUMER", ""),
         "vendor": get_env_or_default("CONTEXT_VENDOR", ""),
         "frankenphp": get_env_or_default("CONTEXT_FRANKENPHP", ""),
         "postgres": get_env_or_default("CONTEXT_POSTGRES", ""),
-        "postgres18": get_env_or_default("CONTEXT_POSTGRES18", ""),
+        "pgbouncer": get_env_or_default("CONTEXT_PGBOUNCER", ""),
     }
 
     if service_name not in context_map:

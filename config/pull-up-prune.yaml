@@ -5,29 +5,39 @@
 
   tasks:
     - name: Change to deployment directory
+      tags: 
+        - cd
       ansible.builtin.shell: cd {{ deploy_dir }}
       args:
         chdir: "{{ deploy_dir }}"
 
     - name: Pull specified Docker images
+      tags: 
+        - pull
       ansible.builtin.shell: docker image pull {{ item }}
       with_items: "{{ docker_images }}"
       args:
         chdir: "{{ deploy_dir }}"
 
     - name: Bring up Docker services
+      tags: 
+        - up
       ansible.builtin.shell: docker compose up -d
       args:
         chdir: "{{ deploy_dir }}"
       register: compose_up
     
     - name: Run migrations if frankenphp container was recreated
+      tags: 
+        - migration
       ansible.builtin.shell: docker compose exec frankenphp php artisan migrate --force
       args:
         chdir: "{{ deploy_dir }}"
       when: compose_up.stdout is search("frankenphp") or compose_up.stderr is search("frankenphp")
 
     - name: Prune unused Docker data
+      tags: 
+        - prune
       ansible.builtin.shell: docker system prune -f
       args:
         chdir: "{{ deploy_dir }}"
