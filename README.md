@@ -45,7 +45,7 @@ Use the helper scripts in `run.py` to interactively build, deploy, or do both in
 
    # Values consumed by Ansible group vars
    SSH_PRIVATE_KEY_FILE=/Users/me/.ssh/id_rsa
-   DEPLOYMENT_DIRECTORY=/opt/bazzarify
+   DEPLOYMENT_DIRECTORY=/opt/bazarify
    ```
    The `ansible_user` defaults to the current shell user through `lookup('env','USER')`. Override it per-host inside `config/inventory.ini` if needed.
 

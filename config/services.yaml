@@ -1,0 +1,8 @@
+services:
+  nginx: CONTEXT_NGINX
+  redis: CONTEXT_REDIS
+  consumer: CONTEXT_CONSUMER
+  vendor: CONTEXT_VENDOR
+  frankenphp: CONTEXT_FRANKENPHP
+  postgres: CONTEXT_POSTGRES
+  pgbouncer: CONTEXT_PGBOUNCER

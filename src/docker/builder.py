@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
+"""Docker image building operations."""
 import os
 import subprocess
 import sys
 from pathlib import Path
-
-from scripts.utils import run, load_env
+from src.core.config import load_config
+from src.core.shell import run, load_env
 
 
 def get_env_or_default(key: str, default: str) -> str:
@@ -20,21 +20,17 @@ def build_service(service_name: str, platform_arch: str):
 
     platform = platforms[platform_arch]
 
-    # Context paths (override via .env if needed)
-    context_map = {
-        "nginx": get_env_or_default("CONTEXT_NGINX", ""),
-        "redis": get_env_or_default("CONTEXT_REDIS", ""),
-        "consumer": get_env_or_default("CONTEXT_CONSUMER", ""),
-        "vendor": get_env_or_default("CONTEXT_VENDOR", ""),
-        "frankenphp": get_env_or_default("CONTEXT_FRANKENPHP", ""),
-        "postgres": get_env_or_default("CONTEXT_POSTGRES", ""),
-        "pgbouncer": get_env_or_default("CONTEXT_PGBOUNCER", ""),
-    }
+    # Load services configuration
+    project_root = Path(__file__).resolve().parent.parent.parent
+    config_path = project_root / "config" / "services.yaml"
+    config = load_config(config_path)
 
-    if service_name not in context_map:
+    if service_name not in config.get("services", {}):
         raise ValueError(f"Unknown service '{service_name}'.")
 
-    context_path = context_map[service_name]
+    # Get context path from env using the key from config
+    env_var = config["services"][service_name]
+    context_path = get_env_or_default(env_var, "")
     image_name = f"techbizz/{service_name}:latest-{platform_arch}"
 
     run(["docker", "buildx", "build", f"--platform={platform}", "-t", image_name, context_path],
@@ -45,17 +41,14 @@ def build_service(service_name: str, platform_arch: str):
         run(["docker", "image", "rm", image_name], f"Cleaning up local {image_name}")
 
 
-# ---------------------------------------------------------------------
-# Main logic
-# ---------------------------------------------------------------------
-
 def main():
+    """Main entry point for direct script execution."""
     if len(sys.argv) < 3:
-        print("Usage: python build_image.py <platform_arch> <service1> [service2] ...")
-        print("Example: python build_image.py amd vendor consumer frankenphp")
+        print("Usage: python -m src.docker.builder <platform_arch> <service1> [service2] ...")
+        print("Example: python -m src.docker.builder amd vendor consumer frankenphp")
         sys.exit(1)
 
-    project_root = Path(__file__).resolve().parent.parent
+    project_root = Path(__file__).resolve().parent.parent.parent
     load_env(project_root / ".env")
 
     platform_arch = sys.argv[1]
