@@ -13,8 +13,9 @@ console = Console()
 def load_env(env_path: Path):
     """Load .env file manually into os.environ."""
     if not env_path.exists():
-        console.print(f"[yellow]⚠️  Warning: .env file not found at {env_path}[/yellow]")
-        return
+        console.print(f"[bold red]❌ Error: Environment file not found at {env_path}[/bold red]")
+        console.print("[yellow]Please create a .env file from .env.example[/yellow]")
+        sys.exit(1)
     with env_path.open() as f:
         for line in f:
             line = line.strip()

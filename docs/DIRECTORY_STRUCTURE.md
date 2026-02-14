@@ -26,6 +26,10 @@ bazarify-ansible/
 │   ├── services.yaml            # Service definitions
 │   ├── inventory.ini            # Ansible inventory
 │   └── pull-up-prune.yaml       # Ansible playbook
+├── docs/                         # Detailed documentation
+│   ├── ARCHITECTURE.md
+│   ├── DIRECTORY_STRUCTURE.md
+│   └── REFACTORING_SUMMARY.md
 ├── main.py                       # Application entry point
 ├── pyproject.toml               # Project dependencies
 └── README.md                     # Documentation
@@ -115,7 +119,7 @@ from services.executor import execute_operation
 ### After
 ```python
 from src.core.shell import run
-from src.core.config import load_config
+from src.core.config import get_services_config, PROJECT_ROOT
 from src.cli.menu import PRESETS
 from src.cli.executor import execute_operation
 ```

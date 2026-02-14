@@ -19,6 +19,16 @@ def deploy_images(docker_images: list[str]):
     inventory_file = config_dir / "inventory.ini"
     playbook_file = config_dir / "pull-up-prune.yaml"
 
+    from src.core.shell import console
+
+    if not inventory_file.exists():
+        console.print(f"[bold red]❌ Error: Inventory file not found: {inventory_file}[/bold red]")
+        sys.exit(1)
+
+    if not playbook_file.exists():
+        console.print(f"[bold red]❌ Error: Playbook file not found: {playbook_file}[/bold red]")
+        sys.exit(1)
+
     # Load env vars
     load_env(env_file)
 

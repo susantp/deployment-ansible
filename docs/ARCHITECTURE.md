@@ -142,6 +142,16 @@ The tool uses the `.env` file as the single source of truth for all environment-
    ```
 3. **`config/inventory.ini`**: Contains only the logical grouping and nicknames for hosts, keeping infrastructure definition separate from connection details.
 
+## Reliability & Error Handling (Fail-Fast)
+
+The tool implements a "Fail-Fast" design to prevent cascading errors and provide clear feedback:
+
+- **Environment Validation**: `load_env()` strictly exits if `.env` is missing, preventing downstream "variable not found" errors.
+- **Resource Existence Checks**:
+  - `builder.py` validates that build context paths exist on disk before starting Docker.
+  - `ansible.py` validates that `inventory.ini` and playbooks exist before calling Ansible.
+- **Explicit Exits**: Replaced generic exceptions with user-friendly `console.print` messages and `sys.exit(1)` to ensure the user knows exactly what to fix.
+
 ## Responsibility Matrix
 
 | Module | Responsibility | Dependencies |

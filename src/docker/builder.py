@@ -3,8 +3,9 @@
 import os
 import subprocess
 import sys
+from pathlib import Path
 from src.core.config import get_services_config, PROJECT_ROOT
-from src.core.shell import run, load_env
+from src.core.shell import run, load_env, console
 
 
 def get_env_or_default(key: str, default: str) -> str:
@@ -16,7 +17,9 @@ def build_service(service_name: str, platform_arch: str):
     """Build and (optionally) push a single service image."""
     platforms = {"amd": "linux/amd64/v2", "arm": "linux/arm64/v8"}
     if platform_arch not in platforms:
-        raise ValueError(f"Unsupported arch '{platform_arch}' — use amd or arm")
+        console.print(f"[bold red]❌ Error: Unsupported architecture '{platform_arch}'[/bold red]")
+        console.print("[yellow]Please use 'amd' or 'arm'[/yellow]")
+        sys.exit(1)
 
     platform = platforms[platform_arch]
 
@@ -25,11 +28,27 @@ def build_service(service_name: str, platform_arch: str):
 
     services_data = config.get("services", {})
     if service_name not in services_data:
-        raise ValueError(f"Unknown service '{service_name}'.")
+        console.print(f"[bold red]❌ Error: Unknown service '{service_name}'[/bold red]")
+        sys.exit(1)
 
     # Get context path from env using the key from config
     env_var = services_data[service_name]
-    context_path = get_env_or_default(env_var, "")
+    context_path_str = get_env_or_default(env_var, "")
+
+    if not context_path_str:
+        console.print(
+            f"[bold red]❌ Error: Build context path not set for {service_name}[/bold red]"
+        )
+        console.print(f"[yellow]Please check if {env_var} is defined in .env[/yellow]")
+        sys.exit(1)
+
+    context_path = Path(context_path_str)
+    if not context_path.exists():
+        console.print(
+            f"[bold red]❌ Error: Build context path does not exist: {context_path}[/bold red]"
+        )
+        sys.exit(1)
+
     image_name = f"techbizz/{service_name}:latest-{platform_arch}"
 
     run(

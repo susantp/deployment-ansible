@@ -55,20 +55,39 @@ src/
 - **Maintainability**: Changes are localized (e.g., updating Ansible logic only affects `src/deploy/`).
 - **Readability**: Clear directory-based separation of concerns.
 
-### 4. **Code Metrics**
+### 4. **New Major Refinements**
+
+#### Centralized Configuration & Discovery
+- Created `PROJECT_ROOT` discovery in `src/core/config.py`.
+- Implemented `get_services_config()` with internal caching to behave like a configuration module.
+- Eliminated manual path calculation (`Path(__file__).resolve()...`) across the codebase.
+
+#### Ansible Single Source of Truth
+- Moved all connection parameters from `inventory.ini` to `.env`.
+- Linked Ansible to `.env` via `group_vars/remote.yaml` lookups.
+- `inventory.ini` now acts strictly as a host registry, making the setup much cleaner and easier to manage.
+
+#### Fail-Fast Implementation
+- Standardized error handling across all modules.
+- The tool now validates the presence of `.env`, configuration files, and build context directories *before* attempting any expensive operations like image building or remote deployment.
+
+### 5. **Code Metrics**
 
 | File | Status | Change |
 |------|--------|--------|
-| `main.py` | Refactored | Orchestration only |
-| `src/core/shell.py` | New/Refactored | Centralized shell utils |
-| `src/cli/menu.py` | New/Refactored | Enriched with logic |
+| `main.py` | Refactored | Orchestration only (delegated paths) |
+| `src/core/config.py` | Enhanced | Added caching and root discovery |
+| `src/core/shell.py` | Robust | Added exit-on-missing-env |
+| `src/docker/builder.py` | Validated | Added path existence checks |
+| `src/deploy/ansible.py` | Validated | Added config existence checks |
 
-### 5. **Design Patterns Applied**
+### 6. **Design Patterns Applied**
 
 1. **Facade Pattern**: `main.py` acts as a simple facade.
 2. **Strategy Pattern**: Different execution flows (CLI vs. Interactive) handled separately.
-3. **Single Responsibility**: Each module and function has a well-defined purpose.
-4. **Centralized Config**: Using `config/services.yaml` for service definitions.
+3. **Memoization**: Configuration loading is cached after first read.
+4. **Single Source of Truth**: All configuration originates from `.env`.
+5. **Fail-Fast**: Error detection is moved to the earliest possible stage.
 
 ## Example Usage
 
@@ -90,6 +109,6 @@ def main():
 ## Verification
 ✅ All functionality preserved
 ✅ Code runs successfully with `uv`
-✅ Better error handling
-✅ Improved maintainability
-✅ Ready for future extensions (e.g., Kubernetes deployer)
+✅ Immediate feedback on missing resources
+✅ Clean separation between config and code
+✅ Ready for future extensions
