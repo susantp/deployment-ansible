@@ -3,8 +3,7 @@
 import os
 import subprocess
 import sys
-from pathlib import Path
-from src.core.config import load_config
+from src.core.config import get_services_config, PROJECT_ROOT
 from src.core.shell import run, load_env
 
 
@@ -22,15 +21,14 @@ def build_service(service_name: str, platform_arch: str):
     platform = platforms[platform_arch]
 
     # Load services configuration
-    project_root = Path(__file__).resolve().parent.parent.parent
-    config_path = project_root / "config" / "services.yaml"
-    config = load_config(config_path)
+    config = get_services_config()
 
-    if service_name not in config.get("services", {}):
+    services_data = config.get("services", {})
+    if service_name not in services_data:
         raise ValueError(f"Unknown service '{service_name}'.")
 
     # Get context path from env using the key from config
-    env_var = config["services"][service_name]
+    env_var = services_data[service_name]
     context_path = get_env_or_default(env_var, "")
     image_name = f"techbizz/{service_name}:latest-{platform_arch}"
 
@@ -61,8 +59,7 @@ def main():
         print("Example: python -m src.docker.builder amd vendor consumer frankenphp")
         sys.exit(1)
 
-    project_root = Path(__file__).resolve().parent.parent.parent
-    load_env(project_root / ".env")
+    load_env(PROJECT_ROOT / ".env")
 
     platform_arch = sys.argv[1]
     services = sys.argv[2:]

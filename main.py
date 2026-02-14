@@ -5,13 +5,12 @@ import subprocess
 import sys
 from rich.prompt import Prompt
 
-from pathlib import Path
 from src.core.shell import print_header, console, load_env
 from src.cli.parser import parse_cli_args
 from src.cli.menu import PRESETS, handle_manual_flow, handle_preset_flow
 from src.cli.executor import execute_operation
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+from src.core.config import PROJECT_ROOT
 
 
 def run_interactive_mode() -> tuple[str, str, list[str]]:

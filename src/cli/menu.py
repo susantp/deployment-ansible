@@ -1,14 +1,10 @@
 """Menu logic and interactive selection flows."""
 
-from pathlib import Path
 from typing import Tuple, List
 from rich.prompt import Prompt
-from src.core.config import load_config
+from src.core.config import get_services_config
 from src.core.shell import print_header, console
 from src.cli.ui import select_from_menu, display_menu_options
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-CONFIG_PATH = PROJECT_ROOT / "config" / "services.yaml"
 
 # Define Presets
 PRESETS = {
@@ -27,7 +23,7 @@ PRESETS = {
 
 def get_services() -> list[str]:
     """Load services list from config."""
-    config = load_config(CONFIG_PATH)
+    config = get_services_config()
     return list(config.get("services", {}).keys())
 
 
