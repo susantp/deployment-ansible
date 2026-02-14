@@ -99,6 +99,6 @@ uv run -m src.deploy.ansible techbizz/nginx:latest-amd
 
 ## Architecture & Refactoring
 For more detailed information on the codebase structure and design decisions, please refer to:
-- [ARCHITECTURE.md](ARCHITECTURE.md)
-- [DIRECTORY_STRUCTURE.md](DIRECTORY_STRUCTURE.md)
-- [REFACTORING_SUMMARY.md](REFACTORING_SUMMARY.md)
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [DIRECTORY_STRUCTURE.md](docs/DIRECTORY_STRUCTURE.md)
+- [REFACTORING_SUMMARY.md](docs/REFACTORING_SUMMARY.md)
