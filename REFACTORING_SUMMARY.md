@@ -4,16 +4,13 @@
 
 ### 1. **DRY (Don't Repeat Yourself) Violations Fixed**
 
-#### Problem: Duplicate Functions in `scripts/utils.py`
-- `load_env()` and `run()` were defined twice (lines 26-38 and 58-77)
-- **Solution**: Removed duplicates, kept only the Rich-styled versions
+#### Problem: Duplicate Functions in `src/core/shell.py` (formerly `scripts/utils.py`)
+- `load_env()` and `run()` were consolidated and moved to a central shell utility.
+- **Solution**: Created `src/core/shell.py` for all shell-related operations with Rich integration.
 
 #### Problem: Repeated Menu Selection Patterns
-- Operation, platform, and service selection logic was duplicated
-- **Solution**: Created reusable `services/ui.py` module with:
-  - `display_menu_options()` - Display numbered menus
-  - `prompt_choice()` - Get user selection
-  - `select_from_menu()` - Combined display + prompt + validation
+- Operation, platform, and service selection logic was duplicated.
+- **Solution**: Created reusable UI components in `src/cli/ui.py`.
 
 ### 2. **SRP (Single Responsibility Principle) Improvements**
 
@@ -26,90 +23,73 @@
 
 #### After: Each module has ONE clear responsibility
 
-**`main.py`** (55 lines → Clean orchestrator)
-- Only responsibility: Coordinate the flow
-- Delegates everything to specialized modules
+**`main.py`**
+- Only responsibility: Coordinate the high-level flow.
+- Delegates to specialized modules in `src/cli/`.
 
-**`services/cli.py`** (NEW)
-- Responsibility: Parse and validate CLI arguments
+**`src/cli/parser.py`**
+- Responsibility: Parse and validate CLI arguments.
 
-**`services/ui.py`** (NEW)
-- Responsibility: Reusable UI components for menus
+**`src/cli/ui.py`**
+- Responsibility: Reusable Rich-based UI components.
 
-**`services/menu.py`** (Enhanced)
-- Responsibility: Interactive menu logic
-- Added functions:
-  - `select_operation()` - Operation selection
-  - `select_platform()` - Platform selection
-  - `handle_manual_flow()` - Manual flow orchestration
-  - `handle_preset_flow()` - Preset flow orchestration
+**`src/cli/menu.py`**
+- Responsibility: Interactive menu logic and preset handling.
 
-**`services/executor.py`** (Existing)
-- Responsibility: Execute build/deploy operations
+**`src/cli/executor.py`**
+- Responsibility: Orchestrate the execution of build and deploy tasks.
 
 ### 3. **Modularity Improvements**
 
-#### New Module Structure
+#### Final Module Structure
 ```
-services/
-├── __init__.py
-├── cli.py          # CLI argument parsing
-├── ui.py           # Reusable UI components
-├── menu.py         # Interactive menu logic
-└── executor.py     # Build/deploy execution
+src/
+├── cli/            # CLI interface and orchestration
+├── core/           # Core utilities (config, shell)
+├── docker/         # Docker build logic
+└── deploy/         # Ansible deployment logic
 ```
 
 #### Benefits
-- **Testability**: Each module can be tested independently
-- **Reusability**: UI components can be used anywhere
-- **Maintainability**: Changes are localized to specific modules
-- **Readability**: Clear separation of concerns
+- **Testability**: Each module can be tested independently.
+- **Maintainability**: Changes are localized (e.g., updating Ansible logic only affects `src/deploy/`).
+- **Readability**: Clear directory-based separation of concerns.
 
 ### 4. **Code Metrics**
 
-| File | Before | After | Change |
-|------|--------|-------|--------|
-| `main.py` | 106 lines | 55 lines | -48% |
-| `scripts/utils.py` | 78 lines | 55 lines | -29% |
-| `services/menu.py` | 43 lines | 135 lines | Enriched with logic |
-
-**New Files Created:**
-- `services/cli.py` - 24 lines
-- `services/ui.py` - 60 lines
-
-**Total Lines of Code**: Similar, but much better organized
+| File | Status | Change |
+|------|--------|--------|
+| `main.py` | Refactored | Orchestration only |
+| `src/core/shell.py` | New/Refactored | Centralized shell utils |
+| `src/cli/menu.py` | New/Refactored | Enriched with logic |
 
 ### 5. **Design Patterns Applied**
 
-1. **Facade Pattern**: `main.py` acts as a simple facade
-2. **Strategy Pattern**: Different flows (CLI, manual, preset) handled separately
-3. **Single Responsibility**: Each function does one thing well
-4. **DRY**: No code duplication
+1. **Facade Pattern**: `main.py` acts as a simple facade.
+2. **Strategy Pattern**: Different execution flows (CLI vs. Interactive) handled separately.
+3. **Single Responsibility**: Each module and function has a well-defined purpose.
+4. **Centralized Config**: Using `config/services.yaml` for service definitions.
 
 ## Example Usage
 
-### Before (main.py had everything)
-```python
-# 100+ lines of mixed concerns
-```
-
-### After (clean delegation)
+### After (clean delegation in `main.py`)
 ```python
 def main():
-    cli_result = parse_cli_args()  # Delegate to cli.py
+    load_env(PROJECT_ROOT / ".env")
+    
+    cli_result = parse_cli_args()
     
     if cli_result:
         mode, arch, services = cli_result
     else:
-        mode, arch, services = run_interactive_mode()  # Delegate to menu.py
+        mode, arch, services = run_interactive_mode()
     
-    execute_operation(mode, arch, services)  # Delegate to executor.py
+    execute_operation(mode, arch, services)
 ```
 
 ## Verification
-
 ✅ All functionality preserved
-✅ Code runs successfully
+✅ Code runs successfully with `uv`
 ✅ Better error handling
 ✅ Improved maintainability
-✅ Ready for future extensions
+✅ Ready for future extensions (e.g., Kubernetes deployer)

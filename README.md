@@ -1,111 +1,104 @@
-# Ansible Deployment
+# Bazarrify Deployment Tool
 
 ## Overview
-This repository provides a thin orchestration layer around two repeatable tasks:
-1. Build multi-architecture Docker images for services with `docker buildx`.
-2. Deploy already-built images to one or more remote hosts via an Ansible playbook that pulls the images, runs `docker compose up`, and prunes unused artifacts.
+This repository provides a modular orchestration layer for managing Docker builds and Ansible deployments. It simplifies the process of:
+1. Building multi-architecture Docker images with `docker buildx`.
+2. Deploying images to remote hosts via Ansible playbooks that pull images, refresh stacks with `docker compose`, and perform cleanup.
 
-Use the helper scripts in `run.py` to interactively build, deploy, or do both in sequence, or call the underlying modules directly when you need tighter control in CI.
+The tool features a rich interactive CLI, preset support, and direct module execution for CI/CD integration.
 
-## Repository layout
-- `run.py` – CLI entry point; routes to the build or deploy helpers.
-- `scripts/build_image.py` – builds (and for AMD pushes) Docker images for the services the platform supports.
-- `scripts/ansible_deploy_remote.py` – loads project environment variables and runs `ansible-playbook` with the provided image list.
-- `scripts/utils.py` – lightweight helpers for loading `.env` files and running commands with friendly logging.
-- `config/` – inventory template, group variables, and the `pull-up-prune.yaml` playbook executed on remote hosts.
+## Repository Layout
+- `main.py` – CLI entry point; handles both interactive and argument-based execution.
+- `src/cli/` – Command-line interface logic (argument parsing, interactive menus, UI components).
+- `src/core/` – Core utilities for configuration loading and shell execution.
+- `src/docker/` – Logic for building and pushing multi-arch Docker images.
+- `src/deploy/` – Logic for triggering Ansible-based remote deployments.
+- `config/` – Configuration files including service definitions (`services.yaml`), inventory, and playbooks.
 
 ## Requirements
-### Local workstation
-- Python 3.10+ (only standard library modules are used).
-- Docker with the Buildx plugin and logged-in access to the `techbizz` Docker Hub namespace.
-- Ansible 2.12+ available on the PATH.
-- SSH access to each remote host listed in the inventory.
+### Local Workstation
+- **Python 3.12+** – Managed via `uv` (recommended).
+- **uv** – Modern Python package and project manager.
+- **Docker** – With Buildx plugin and access to relevant registries.
+- **Ansible** – Required for remote deployment tasks.
+- **SSH Access** – Configured for target hosts in the inventory.
 
-### Remote targets
-- Docker Engine and the Compose plugin installed and usable by the configured `ansible_user`.
-- A directory that contains the `docker-compose.yml` file for the stack (referenced as `DEPLOYMENT_DIRECTORY`).
-- Enough disk space for the pulled images and temporary build layers.
+### Remote Targets
+- **Docker Engine** and **Compose plugin**.
+- Existing **deployment directory** containing the `docker-compose.yml` for the stack.
 
-## Initial setup
-1. **Copy the inventory template.**
+## Initial Setup
+
+1. **Install dependencies** (using `uv`):
+   ```sh
+   uv sync
+   ```
+
+2. **Configure Services**:
+   Edit `config/services.yaml` to define your services and their build contexts.
+
+3. **Set up environment**:
+   Copy the example environment file and fill in required paths:
+   ```sh
+   cp .env.example .env
+   ```
+   Provide values for `SSH_PRIVATE_KEY_FILE`, `DEPLOYMENT_DIRECTORY`, and service context paths.
+
+4. **Prepare Ansible Inventory**:
    ```sh
    cp config/inventory.ini.template config/inventory.ini
    ```
-   Replace `ansible_host` with the public IP or hostname of every target. Each host must belong to the `remote` group because the playbook is scoped to that group.
+   Update `config/inventory.ini` with your target host IPs/hostnames.
 
-2. **Create/update `.env` in the repo root.** The helper scripts load it automatically. Provide at least:
-   ```dotenv
-   # Docker build contexts (absolute paths recommended)
-   CONTEXT_NGINX=/path/to/nginx
-   CONTEXT_CONSUMER=/path/to/consumer
-   CONTEXT_VENDOR=/path/to/vendor
-   CONTEXT_FRANKENPHP=/path/to/frankenphp
-   CONTEXT_POSTGRES=/path/to/postgres
-   CONTEXT_POSTGRES18=/path/to/postgres18
-
-   # Values consumed by Ansible group vars
-   SSH_PRIVATE_KEY_FILE=/Users/me/.ssh/id_rsa
-   DEPLOYMENT_DIRECTORY=/opt/bazarify
-   ```
-   The `ansible_user` defaults to the current shell user through `lookup('env','USER')`. Override it per-host inside `config/inventory.ini` if needed.
-
-3. **Verify Ansible connectivity.** Once the inventory and `.env` are in place, test the SSH hop:
+5. **Verify Connectivity**:
    ```sh
    ansible remote -i config/inventory.ini -m ping
    ```
 
-4. **Log in to Docker Hub.** Building AMD images triggers an automatic push + prune cycle, so `docker login` must succeed beforehand.
-
 ## Usage
-### Quick orchestration via `run.py`
-Run everything from one entry point:
-```sh
-python3 run.py <mode> <arch> <service...>
-```
-- `mode`: `build`, `deploy`, or `both` (build then deploy).
-- `arch`: `amd` for `linux/amd64/v2`, `arm` for `linux/arm64/v8`.
-- `service...`: one or more service keys from the context map (`nginx`, `consumer`, `vendor`, `frankenphp`, `postgres`, `postgres18`).
 
-If you omit arguments, the script prompts for them interactively. Example full cycle:
+### Interactive CLI
+Run the main orchestrator without arguments to enter the interactive menu:
 ```sh
-python3 run.py both amd vendor consumer
+uv run main.py
 ```
-This builds the two AMD images, pushes/removes the local tags, then deploys them sequentially.
+You can choose from defined **Presets** or use the **Manual** flow to select specific operations, architectures, and services.
 
-### Building images directly
-You can call the build helper without the wrapper:
+### Command-Line Arguments
+For non-interactive use or CI/CD:
 ```sh
-python3 -m scripts.build_image amd vendor frankenphp
+uv run main.py <mode> <arch> <service...>
 ```
-- The `.env` file defines the build context per service; blank values result in Docker using the repo root, so make sure paths are set.
-- AMD builds push to Docker Hub and delete the local tag once the push succeeds to save disk space. ARM builds stay local.
-- Add a new service by extending the `context_map` in `scripts/build_image.py` with the desired env var key.
+- `mode`: `build`, `deploy`, or `both`.
+- `arch`: `amd` (linux/amd64) or `arm` (linux/arm64).
+- `service...`: One or more services defined in `config/services.yaml`.
 
-### Deploying images directly
-Deployment only needs the fully-qualified image references:
+Example:
 ```sh
-python3 -m scripts.ansible_deploy_remote techbizz/vendor:latest-amd techbizz/consumer:latest-amd
+uv run main.py both amd vendor consumer
 ```
-Under the hood this runs:
-```sh
-ansible-playbook -i config/inventory.ini config/pull-up-prune.yaml \
-  --extra-vars '{"docker_images":["techbizz/vendor:latest-amd","techbizz/consumer:latest-amd"]}'
-```
-The playbook performs, per host:
-1. `cd` into `DEPLOYMENT_DIRECTORY`.
-2. `docker image pull` on every item in `docker_images`.
-3. `docker compose up -d` to refresh the stack.
-4. `docker system prune -f` for cleanup.
 
-Ensure the remote directory already contains the compose file(s); this repo purposely does not ship application manifests.
+### Direct Module Execution
+Modules can be executed directly for specific tasks:
+
+**Building images:**
+```sh
+uv run -m src.docker.builder amd nginx vendor
+```
+
+**Deploying images:**
+```sh
+uv run -m src.deploy.ansible techbizz/nginx:latest-amd
+```
 
 ## Troubleshooting
-- **`docker buildx` errors** – confirm that Buildx is enabled (`docker buildx ls`) and that the platform string matches your builder instance. Enable the experimental CLI if required.
-- **Authentication failures when pushing** – re-run `docker login` for the `techbizz` namespace or provide a `DOCKER_CONFIG` pointing to valid credentials.
-- **`ansible-playbook` cannot connect** – double-check `ansible_host`, reachable SSH port, and that `SSH_PRIVATE_KEY_FILE` points to a key with access. Use `ANSIBLE_HOST_KEY_CHECKING=False` in the environment if you are still accepting fingerprints.
-- **Compose command not found remotely** – install the Docker Compose plugin or alias `docker compose` appropriately on the hosts.
-- **Missing deploy directory** – create `DEPLOYMENT_DIRECTORY` on every host and place the desired `docker-compose.yml` there; the playbook does not clone repos.
+- **Buildx Errors**: Ensure `docker buildx ls` shows an active builder capable of the target platform.
+- **Registry Failures**: Perform `docker login` for the namespace defined in your configuration.
+- **Ansible Connection**: Verify the `SSH_PRIVATE_KEY_FILE` path in `.env` and that your public key is authorized on the remote host.
+- **Missing Deploy Directory**: The tool expects the stack directory to exist on the remote host with a valid `docker-compose.yml`.
 
-## Next steps
-- Wire the scripts into CI/CD by invoking `python3 run.py build ...` on tagged releases and `python3 -m scripts.ansible_deploy_remote ...` from your release pipeline.
-- Parameterize additional Ansible tasks (backups, health checks, etc.) by editing `config/pull-up-prune.yaml` or adding roles.
+## Architecture & Refactoring
+For more detailed information on the codebase structure and design decisions, please refer to:
+- [ARCHITECTURE.md](ARCHITECTURE.md)
+- [DIRECTORY_STRUCTURE.md](DIRECTORY_STRUCTURE.md)
+- [REFACTORING_SUMMARY.md](REFACTORING_SUMMARY.md)
