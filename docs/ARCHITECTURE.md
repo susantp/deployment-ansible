@@ -128,6 +128,20 @@ Command Line Args
 (same as interactive)
 ```
 
+## Configuration Philosophy
+
+### Single Source of Truth
+The tool uses the `.env` file as the single source of truth for all environment-specific variables. This ensures that both the Python orchestration layer and the Ansible deployment layer share the same configuration.
+
+### Implementation Pattern
+1. **`.env`**: Contains all secrets, paths, and connection details (e.g., `REMOTE_HOST`, `SSH_PRIVATE_KEY_FILE`).
+2. **`config/group_vars/remote.yaml`**: Bridges the environment variables to Ansible using lookups:
+   ```yaml
+   ansible_host: "{{ lookup('env', 'REMOTE_HOST') }}"
+   ansible_user: "{{ lookup('env', 'USER') }}"
+   ```
+3. **`config/inventory.ini`**: Contains only the logical grouping and nicknames for hosts, keeping infrastructure definition separate from connection details.
+
 ## Responsibility Matrix
 
 | Module | Responsibility | Dependencies |

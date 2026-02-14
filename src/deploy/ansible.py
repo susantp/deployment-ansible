@@ -3,7 +3,7 @@
 import json
 import subprocess
 import sys
-from pathlib import Path
+from src.core.config import PROJECT_ROOT
 from src.core.shell import load_env
 
 
@@ -14,9 +14,8 @@ def deploy_images(docker_images: list[str]):
         docker_images: List of Docker images to deploy
     """
     # Project structure
-    project_root = Path(__file__).resolve().parent.parent.parent
-    env_file = project_root / ".env"
-    config_dir = project_root / "config"
+    env_file = PROJECT_ROOT / ".env"
+    config_dir = PROJECT_ROOT / "config"
     inventory_file = config_dir / "inventory.ini"
     playbook_file = config_dir / "pull-up-prune.yaml"
 
