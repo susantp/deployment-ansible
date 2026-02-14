@@ -1,4 +1,5 @@
 """Configuration loading utilities."""
+
 import sys
 from pathlib import Path
 import yaml
@@ -10,9 +11,11 @@ console = Console()
 def load_config(config_path: Path) -> dict:
     """Load configuration from a YAML file."""
     if not config_path.exists():
-        console.print(f"[bold red]❌ Configuration file not found at {config_path}[/bold red]")
+        console.print(
+            f"[bold red]❌ Configuration file not found at {config_path}[/bold red]"
+        )
         sys.exit(1)
-    
+
     with config_path.open() as f:
         try:
             return yaml.safe_load(f)

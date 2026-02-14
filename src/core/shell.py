@@ -1,4 +1,5 @@
 """Shell command execution utilities."""
+
 import os
 import sys
 import subprocess
@@ -37,4 +38,6 @@ def run(cmd: list[str], desc: str):
 
 def print_header(title: str):
     """Print a styled header."""
-    console.print(Panel(f"[bold white]{title}[/bold white]", border_style="blue", expand=False))
+    console.print(
+        Panel(f"[bold white]{title}[/bold white]", border_style="blue", expand=False)
+    )

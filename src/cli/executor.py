@@ -1,4 +1,5 @@
 """Operation execution orchestrator."""
+
 from src.docker.builder import build_service
 from src.deploy.ansible import deploy_images
 
@@ -19,6 +20,6 @@ def execute_operation(mode: str, arch: str, services: list[str]):
     """Execute the requested operation(s)."""
     if mode in {"build", "both"}:
         execute_build(arch, services)
-    
+
     if mode in {"deploy", "both"}:
         execute_deploy(arch, services)

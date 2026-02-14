@@ -1,4 +1,5 @@
 """Ansible deployment operations."""
+
 import json
 import subprocess
 import sys
@@ -8,7 +9,7 @@ from src.core.shell import load_env
 
 def deploy_images(docker_images: list[str]):
     """Deploy Docker images using Ansible.
-    
+
     Args:
         docker_images: List of Docker images to deploy
     """
@@ -18,7 +19,7 @@ def deploy_images(docker_images: list[str]):
     config_dir = project_root / "config"
     inventory_file = config_dir / "inventory.ini"
     playbook_file = config_dir / "pull-up-prune.yaml"
-    
+
     # Load env vars
     load_env(env_file)
 
@@ -47,7 +48,9 @@ def main():
     """Main entry point for direct script execution."""
     # Require at least one docker image
     if len(sys.argv) < 2:
-        print("⚠️  Usage: python -m src.deploy.ansible <image1[:tag]> [image2[:tag] ...]")
+        print(
+            "⚠️  Usage: python -m src.deploy.ansible <image1[:tag]> [image2[:tag] ...]"
+        )
         sys.exit(1)
 
     docker_images = sys.argv[1:]

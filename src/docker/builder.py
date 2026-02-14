@@ -1,4 +1,5 @@
 """Docker image building operations."""
+
 import os
 import subprocess
 import sys
@@ -33,8 +34,18 @@ def build_service(service_name: str, platform_arch: str):
     context_path = get_env_or_default(env_var, "")
     image_name = f"techbizz/{service_name}:latest-{platform_arch}"
 
-    run(["docker", "buildx", "build", f"--platform={platform}", "-t", image_name, context_path],
-        f"Building Docker image {image_name}")
+    run(
+        [
+            "docker",
+            "buildx",
+            "build",
+            f"--platform={platform}",
+            "-t",
+            image_name,
+            context_path,
+        ],
+        f"Building Docker image {image_name}",
+    )
 
     if platform_arch == "amd":
         run(["docker", "push", image_name], f"Pushing {image_name} to Docker Hub")
@@ -44,7 +55,9 @@ def build_service(service_name: str, platform_arch: str):
 def main():
     """Main entry point for direct script execution."""
     if len(sys.argv) < 3:
-        print("Usage: python -m src.docker.builder <platform_arch> <service1> [service2] ...")
+        print(
+            "Usage: python -m src.docker.builder <platform_arch> <service1> [service2] ..."
+        )
         print("Example: python -m src.docker.builder amd vendor consumer frankenphp")
         sys.exit(1)
 
