@@ -4,7 +4,7 @@ from typing import Tuple, List
 from rich.prompt import Prompt
 from src.core.config import get_services_config
 from src.core.shell import print_header, console
-from src.cli.ui import select_from_menu, display_menu_options
+from src.cli.ui import select_from_menu
 
 # Define Presets
 PRESETS = {
@@ -39,13 +39,30 @@ def select_services() -> list[str]:
     )
     selected_indices = svc_choice.split()
     services = []
+    seen_services = set()
+
     for idx_str in selected_indices:
-        try:
-            idx = int(idx_str) - 1
-            if 0 <= idx < len(services_list):
-                services.append(services_list[idx])
-        except ValueError:
-            pass
+        if not idx_str.isdigit():
+            console.print(
+                f"[bold red]❌ Invalid service selection: '{idx_str}'[/bold red]"
+            )
+            import sys
+
+            sys.exit(1)
+
+        idx = int(idx_str) - 1
+        if not 0 <= idx < len(services_list):
+            console.print(
+                f"[bold red]❌ Service selection out of range: '{idx_str}'[/bold red]"
+            )
+            import sys
+
+            sys.exit(1)
+
+        service = services_list[idx]
+        if service not in seen_services:
+            services.append(service)
+            seen_services.add(service)
 
     return services
 
@@ -54,16 +71,24 @@ def select_operation() -> str:
     """Prompt user to select operation mode."""
     options = {"1": "build", "2": "deploy", "3": "both"}
     display_options = {"1": "Build", "2": "Deploy", "3": "Both"}
-    display_menu_options(display_options, "Operation")
-    return select_from_menu(options, None, "Invalid operation")
+    return select_from_menu(
+        options,
+        "Operation",
+        "Invalid operation",
+        display_options=display_options,
+    )
 
 
 def select_platform() -> str:
     """Prompt user to select platform architecture."""
     options = {"1": "amd", "2": "arm"}
     display_options = {"1": "AMD (linux/amd64)", "2": "ARM (linux/arm64)"}
-    display_menu_options(display_options, "Platform")
-    return select_from_menu(options, None, "Invalid platform")
+    return select_from_menu(
+        options,
+        "Platform",
+        "Invalid platform",
+        display_options=display_options,
+    )
 
 
 def handle_manual_flow() -> Tuple[str, str, List[str]]:

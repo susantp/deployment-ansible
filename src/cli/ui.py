@@ -1,6 +1,6 @@
 """Reusable UI components for menu interactions."""
 
-from typing import Dict
+from typing import Dict, Optional
 from rich.prompt import Prompt
 from src.core.shell import console, print_header
 
@@ -30,15 +30,20 @@ def prompt_choice(options: Dict[str, str], prompt_text: str = None) -> str:
         The selected value from options dict
     """
     if not prompt_text:
-        max_option = max(int(k) for k in options.keys() if k.isdigit())
-        prompt_text = f"Select [green][0-{max_option}][/green]"
+        numeric_options = [int(k) for k in options.keys() if k.isdigit()]
+        min_option = min(numeric_options)
+        max_option = max(numeric_options)
+        prompt_text = f"Select [green][{min_option}-{max_option}][/green]"
 
     choice = Prompt.ask(f"\n{prompt_text}")
     return options.get(choice)
 
 
 def select_from_menu(
-    options: Dict[str, str], header: str, error_msg: str = "Invalid selection"
+    options: Dict[str, str],
+    header: str | None,
+    error_msg: str = "Invalid selection",
+    display_options: Optional[Dict[str, str]] = None,
 ) -> str:
     """Display menu, prompt for choice, and validate.
 
@@ -46,6 +51,7 @@ def select_from_menu(
         options: Dict mapping option numbers to values
         header: Header to display above menu
         error_msg: Error message for invalid selection
+        display_options: Optional mapping used only for menu rendering
 
     Returns:
         The selected value
@@ -53,7 +59,8 @@ def select_from_menu(
     Raises:
         SystemExit: If invalid selection
     """
-    display_menu_options(options, header)
+    menu_options = display_options or options
+    display_menu_options(menu_options, header)
     selected = prompt_choice(options)
 
     if not selected:
