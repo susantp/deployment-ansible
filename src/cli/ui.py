@@ -5,7 +5,7 @@ from rich.prompt import Prompt
 from src.core.shell import console, print_header
 
 
-def display_menu_options(options: Dict[str, str], header: str = None):
+def display_menu_options(options: Dict[str, str], header: str|None = None):
     """Display numbered menu options.
 
     Args:
@@ -19,7 +19,7 @@ def display_menu_options(options: Dict[str, str], header: str = None):
         console.print(f"[green]{num}.[/green] {desc}")
 
 
-def prompt_choice(options: Dict[str, str], prompt_text: str = None) -> str:
+def prompt_choice(options: Dict[str, str], prompt_text: str|None = None) -> str:
     """Prompt user to select from menu options.
 
     Args:
@@ -29,14 +29,16 @@ def prompt_choice(options: Dict[str, str], prompt_text: str = None) -> str:
     Returns:
         The selected value from options dict
     """
-    if not prompt_text:
+    if prompt_text is None:
         numeric_options = [int(k) for k in options.keys() if k.isdigit()]
         min_option = min(numeric_options)
         max_option = max(numeric_options)
         prompt_text = f"Select [green][{min_option}-{max_option}][/green]"
 
     choice = Prompt.ask(f"\n{prompt_text}")
-    return options.get(choice)
+    if choice not in options:
+        return ""
+    return options[choice]
 
 
 def select_from_menu(

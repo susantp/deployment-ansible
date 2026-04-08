@@ -42,10 +42,9 @@ def build_service(service_name: str, platform_arch: str):
         console.print(f"[yellow]Please check if {env_var} is defined in .env[/yellow]")
         sys.exit(1)
 
-    context_path = Path(context_path_str)
-    if not context_path.exists():
+    if not Path(context_path_str).exists():
         console.print(
-            f"[bold red]❌ Error: Build context path does not exist: {context_path}[/bold red]"
+            f"[bold red]❌ Error: Build context path does not exist: {context_path_str}[/bold red]"
         )
         sys.exit(1)
 
@@ -59,7 +58,7 @@ def build_service(service_name: str, platform_arch: str):
             f"--platform={platform}",
             "-t",
             image_name,
-            context_path,
+            context_path_str,
         ],
         f"Building Docker image {image_name}",
     )
