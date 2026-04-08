@@ -17,3 +17,10 @@
 - CLI parsing does not validate mode or service names early; validation mostly happens deeper in execution.
 - The manual `.env` parser is intentionally simple and may not handle advanced dotenv syntax.
 - No automated test suite is present yet, despite docs describing a future testing layout.
+
+## Product Vision
+- The build pillar should stay oriented around image creation and registry publishing, even if registry selection is currently fixed to the existing naming contract.
+- Future build work may add configurable image registry ownership, but that is vision-level direction, not an implemented contract yet.
+- The deploy pillar is currently Docker-plus-Ansible focused, but the longer-term direction should leave room for additional deployment backends such as Kubernetes.
+- Future deployment backends are a design direction only until a concrete plan, contract, and implementation are introduced.
+- When extending toward new registries or new deployment targets, preserve the separation between orchestration planning and infrastructure adapters.
