@@ -1,250 +1,164 @@
 # Architecture Overview
 
-## System Architecture
+## Intent
+This repository is a deployment orchestrator. Its domain is:
+- selecting services
+- selecting operation mode
+- selecting target architecture
+- planning image tags
+- executing Docker builds
+- executing Ansible deploys
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         main.py                              │
-│                    (Entry Point / Orchestrator)              │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ├─────────────────┬──────────────┐
-                              ▼                 ▼              ▼
-                    ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-                    │   src/cli/   │  │  src/core/   │  │ src/docker/  │
-                    │              │  │              │  │              │
-                    │ • parser.py  │  │ • config.py  │  │ • builder.py │
-                    │ • menu.py    │  │ • shell.py   │  │              │
-                    │ • ui.py      │  │              │  └──────────────┘
-                    │ • executor.py│  └──────────────┘         │
-                    └──────────────┘         │                 │
-                            │                │                 │
-                            │                ▼                 │
-                            │      ┌──────────────┐            │
-                            │      │ config/      │            │
-                            │      │              │            │
-                            │      │ • services.  │            │
-                            │      │   yaml       │            │
-                            │      └──────────────┘            │
-                            │                                  │
-                            └──────────────┬───────────────────┘
-                                          ▼
-                                ┌──────────────┐
-                                │ src/deploy/  │
-                                │              │
-                                │ • ansible.py │
-                                └──────────────┘
-```
+It does not own the application business domain of the services it builds.
 
-## Module Dependencies
+## Current Layering
 
-```
+```text
 main.py
-  ├─> src.cli.parser (parse CLI args)
-  ├─> src.cli.menu (interactive menus)
-  │     ├─> src.cli.ui (UI components)
-  │     ├─> src.core.config (load services.yaml)
-  │     └─> src.core.shell (print headers, console)
-  └─> src.cli.executor (orchestrate operations)
-        ├─> src.docker.builder (build images)
-        │     ├─> src.core.config (load services.yaml)
-        │     └─> src.core.shell (run commands, load env)
-        └─> src.deploy.ansible (deploy images)
-              └─> src.core.shell (run commands, load env)
+  -> src/cli/
+      -> src/core/domain/
+      -> src/cli/executor.py
+          -> src/core/runtime/services.py
+              -> src/docker/
+              -> src/deploy/
+              -> src/core/runtime/shell.py
 ```
 
-## Data Flow
+## Source Tree By Role
 
-### Interactive Mode
-```
-User Input
-    │
-    ▼
-┌─────────────────┐
-│  main.py        │
-│  (entry point)  │
-└─────────────────┘
-    │
-    ▼
-┌─────────────────┐
-│  cli/menu.py    │
-│  (show menu)    │
-└─────────────────┘
-    │
-    ├─> Preset Selected ──────┐
-    │                         │
-    └─> Manual Selected       │
-            │                 │
-            ▼                 ▼
-    ┌──────────────┐  ┌──────────────┐
-    │ select_      │  │ handle_      │
-    │ operation()  │  │ preset_flow()│
-    │ select_      │  │              │
-    │ platform()   │  │              │
-    │ select_      │  │              │
-    │ services()   │  │              │
-    └──────────────┘  └──────────────┘
-            │                 │
-            └────────┬────────┘
-                     ▼
-            ┌──────────────┐
-            │ cli/         │
-            │ executor.py  │
-            └──────────────┘
-                     │
-        ┌────────────┼────────────┐
-        ▼            ▼            ▼
-    Build        Deploy       Both
-        │            │            │
-        ▼            ▼            ▼
-┌──────────┐  ┌──────────┐  ┌──────────┐
-│ docker/  │  │ deploy/  │  │ Both     │
-│ builder  │  │ ansible  │  │ modules  │
-└──────────┘  └──────────┘  └──────────┘
-```
+### Entrypoint
+- `main.py`
+  - chooses interactive or CLI mode
+  - loads `.env`
+  - delegates execution
 
-### CLI Mode
-```
-Command Line Args
-    │
-    ▼
-┌─────────────────┐
-│  main.py        │
-└─────────────────┘
-    │
-    ▼
-┌─────────────────┐
-│  cli/parser.py  │
-│  (parse args)   │
-└─────────────────┘
-    │
-    ▼
-┌─────────────────┐
-│  cli/           │
-│  executor.py    │
-└─────────────────┘
-    │
-    ▼
-(same as interactive)
+### CLI
+- `src/cli/parser.py`
+  - parses CLI commands into canonical values
+- `src/cli/menu.py`
+  - handles interactive presets and manual selection
+- `src/cli/ui.py`
+  - reusable prompt/menu rendering
+- `src/cli/executor.py`
+  - coordinates build and deploy execution from planned requests
+
+### Core Domain
+- `src/core/domain/choices.py`
+  - canonical operation and platform choices
+- `src/core/domain/policies.py`
+  - image-tag and architecture policy
+- `src/core/domain/orchestration.py`
+  - `BuildRequest`
+  - `DeployRequest`
+  - pure planner functions
+
+### Core Contracts
+- `src/core/contracts/ports.py`
+  - narrow callable ports for build, deploy, and command running
+
+### Core Runtime
+- `src/core/runtime/services.py`
+  - concrete dependency wiring
+- `src/core/runtime/shell.py`
+  - environment loading
+  - fail-fast output/exit helpers
+  - command execution
+
+### Config Authority
+- `src/core/config.py`
+  - `PROJECT_ROOT`
+  - `config/services.yaml` loading/caching
+
+### Infrastructure Adapters
+- `src/docker/builder.py`
+  - executes `BuildRequest`
+- `src/deploy/ansible.py`
+  - executes `DeployRequest`
+
+## Dependency Direction
+
+The intended direction is:
+
+```text
+CLI / orchestration
+  depends on
+domain planning + contracts + runtime wiring
+  which delegate to
+infrastructure adapters
+  which use
+runtime shell execution
 ```
 
-## Configuration Philosophy
+Important point:
+- high-level orchestration should not need to know subprocess details
+- infrastructure adapters should not own orchestration planning policy
 
-### Single Source of Truth
-The tool uses the `.env` file as the single source of truth for all environment-specific variables. This ensures that both the Python orchestration layer and the Ansible deployment layer share the same configuration.
+## Planning vs Execution
 
-### Implementation Pattern
-1. **`.env`**: Contains all secrets, paths, and connection details (e.g., `REMOTE_HOST`, `SSH_PRIVATE_KEY_FILE`).
-2. **`config/group_vars/remote.yaml`**: Bridges the environment variables to Ansible using lookups:
-   ```yaml
-   ansible_host: "{{ lookup('env', 'REMOTE_HOST') }}"
-   ansible_user: "{{ lookup('env', 'USER') }}"
-   ```
-3. **`config/inventory.ini`**: Contains only the logical grouping and nicknames for hosts, keeping infrastructure definition separate from connection details.
+### Planning
+Planning is pure and lives in `src/core/domain/orchestration.py`.
 
-## Reliability & Error Handling (Fail-Fast)
+Examples:
+- turn `arch + services` into `BuildRequest` values
+- turn `arch + services` into canonical deploy image tags
 
-The tool implements a "Fail-Fast" design to prevent cascading errors and provide clear feedback:
+### Execution
+Execution is adapter work:
+- Docker adapter consumes a `BuildRequest`
+- Ansible adapter consumes a `DeployRequest`
+- command execution is delegated to the runtime runner
 
-- **Environment Validation**: `load_env()` strictly exits if `.env` is missing, preventing downstream "variable not found" errors.
-- **Resource Existence Checks**:
-  - `builder.py` validates that build context paths exist on disk before starting Docker.
-  - `ansible.py` validates that `inventory.ini` and playbooks exist before calling Ansible.
-- **Explicit Exits**: Replaced generic exceptions with user-friendly `console.print` messages and `sys.exit(1)` to ensure the user knows exactly what to fix.
+## Input Model
 
-## Responsibility Matrix
+There are two input surfaces:
+- interactive mode
+- CLI mode
 
-| Module | Responsibility | Dependencies |
-|--------|---------------|--------------|
-| `main.py` | Entry point, orchestration | cli.parser, cli.menu, cli.executor |
-| `cli/parser.py` | Parse CLI arguments | core.shell |
-| `cli/menu.py` | Interactive menus | cli.ui, core.config, core.shell |
-| `cli/ui.py` | Reusable UI components | core.shell |
-| `cli/executor.py` | Orchestrate operations | docker.builder, deploy.ansible |
-| `core/config.py` | Load YAML config | - |
-| `core/shell.py` | Execute shell commands | - |
-| `docker/builder.py` | Build Docker images | core.config, core.shell |
-| `deploy/ansible.py` | Deploy via Ansible | core.shell |
+They now share the same canonical choice registry in `src/core/domain/choices.py`.
 
-## Extension Points
+That means:
+- interactive menu numbers are UI-only
+- CLI strings remain canonical values
+- both resolve through one source of truth
 
-### Adding New Deployment Method
-```python
-# src/deploy/kubernetes.py
-def deploy_to_k8s(images: list[str]):
-    """Deploy to Kubernetes cluster."""
-    pass
+## Runtime Contracts
 
-# Update src/cli/executor.py
-from src.deploy.kubernetes import deploy_to_k8s
+### Required config
+- `.env`
+- `config/services.yaml`
+- `config/pull-up-prune.yaml`
+- `config/inventory.ini`
 
-def execute_deploy(arch: str, services: list[str], method: str = "ansible"):
-    if method == "kubernetes":
-        deploy_to_k8s(images)
-    else:
-        deploy_images(images)
-```
+### Image naming
+- `techbizz/<service>:latest-<arch>`
 
-### Adding New Build System
-```python
-# src/docker/compose.py
-def build_with_compose(service: str):
-    """Build using docker-compose."""
-    pass
+### Supported architectures
+- `amd -> linux/amd64/v2`
+- `arm -> linux/arm64/v8`
 
-# Update src/cli/executor.py
-from src.docker.compose import build_with_compose
+### Deploy contract
+- deploy receives fully qualified image tags
+- playbook pulls each image
+- remote host refreshes compose stack
 
-def execute_build(arch: str, services: list[str], method: str = "buildx"):
-    if method == "compose":
-        build_with_compose(service)
-    else:
-        build_service(service, arch)
-```
+## Fail-Fast Philosophy
 
-### Adding Configuration Wizard
-```python
-# src/cli/wizard.py
-def run_config_wizard():
-    """Interactive configuration wizard."""
-    pass
+The repo intentionally fails early for:
+- missing `.env`
+- missing config files
+- unknown services
+- unsupported architectures
+- missing build contexts
 
-# Update main.py
-from src.cli.wizard import run_config_wizard
+The goal is explicit operator feedback rather than recovery logic.
 
-if "--wizard" in sys.argv:
-    run_config_wizard()
-```
-
-## Testing Strategy
-
-### Unit Tests
-```
-tests/
-├── test_cli/
-│   ├── test_parser.py
-│   ├── test_menu.py
-│   └── test_ui.py
-├── test_core/
-│   ├── test_config.py
-│   └── test_shell.py
-├── test_docker/
-│   └── test_builder.py
-└── test_deploy/
-    └── test_ansible.py
-```
-
-### Integration Tests
-```
-tests/integration/
-├── test_build_flow.py
-├── test_deploy_flow.py
-└── test_full_workflow.py
-```
-
-## Performance Considerations
-
-- **Lazy imports**: Import modules only when needed
-- **Config caching**: Load config once, reuse
-- **Parallel builds**: Can build multiple services in parallel
-- **Async operations**: Future enhancement for concurrent deploys
+## Practical Reading Order
+For a new developer:
+1. `main.py`
+2. `src/cli/parser.py`
+3. `src/cli/menu.py`
+4. `src/cli/executor.py`
+5. `src/core/domain/`
+6. `src/core/runtime/services.py`
+7. `src/docker/builder.py`
+8. `src/deploy/ansible.py`

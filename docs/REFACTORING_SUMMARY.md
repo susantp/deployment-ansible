@@ -1,114 +1,49 @@
-# Codebase Refactoring Summary
+# Refactoring Summary
 
-## Improvements Made
+## Current State
+The codebase has been refactored from a small pragmatic script-style layout into a clearer orchestrator with explicit boundaries.
 
-### 1. **DRY (Don't Repeat Yourself) Violations Fixed**
+## Main Improvements
 
-#### Problem: Duplicate Functions in `src/core/shell.py` (formerly `scripts/utils.py`)
-- `load_env()` and `run()` were consolidated and moved to a central shell utility.
-- **Solution**: Created `src/core/shell.py` for all shell-related operations with Rich integration.
+### 1. Canonical Inputs
+- operation and platform choices are centralized in `src/core/domain/choices.py`
+- interactive mode and CLI mode resolve through the same domain choices
 
-#### Problem: Repeated Menu Selection Patterns
-- Operation, platform, and service selection logic was duplicated.
-- **Solution**: Created reusable UI components in `src/cli/ui.py`.
+### 2. Shared Policy
+- image naming and architecture mapping are centralized in `src/core/domain/policies.py`
 
-### 2. **SRP (Single Responsibility Principle) Improvements**
+### 3. Explicit Orchestration Planning
+- build and deploy requests are modeled in `src/core/domain/orchestration.py`
+- executor coordinates requests instead of building deploy tags inline
 
-#### Before: `main.py` had 5 responsibilities
-1. CLI argument parsing
-2. Menu display
-3. User input validation
-4. Preset handling
-5. Execution orchestration
+### 4. Dependency Contracts
+- callable ports live in `src/core/contracts/ports.py`
+- high-level orchestration no longer imports concrete infrastructure modules directly
 
-#### After: Each module has ONE clear responsibility
+### 5. Runtime Wiring
+- concrete dependency wiring lives in `src/core/runtime/services.py`
+- command execution and fail-fast runtime behavior live in `src/core/runtime/shell.py`
 
-**`main.py`**
-- Only responsibility: Coordinate the high-level flow.
-- Delegates to specialized modules in `src/cli/`.
+### 6. Adapter-Style Build and Deploy Modules
+- `src/docker/builder.py` executes `BuildRequest`
+- `src/deploy/ansible.py` executes `DeployRequest`
 
-**`src/cli/parser.py`**
-- Responsibility: Parse and validate CLI arguments.
+### 7. Directory Structure Alignment
+`src/core/` now reflects architectural roles:
 
-**`src/cli/ui.py`**
-- Responsibility: Reusable Rich-based UI components.
-
-**`src/cli/menu.py`**
-- Responsibility: Interactive menu logic and preset handling.
-
-**`src/cli/executor.py`**
-- Responsibility: Orchestrate the execution of build and deploy tasks.
-
-### 3. **Modularity Improvements**
-
-#### Final Module Structure
-```
-src/
-├── cli/            # CLI interface and orchestration
-├── core/           # Core utilities (config, shell)
-├── docker/         # Docker build logic
-└── deploy/         # Ansible deployment logic
+```text
+src/core/
+  config.py
+  contracts/
+  domain/
+  runtime/
 ```
 
-#### Benefits
-- **Testability**: Each module can be tested independently.
-- **Maintainability**: Changes are localized (e.g., updating Ansible logic only affects `src/deploy/`).
-- **Readability**: Clear directory-based separation of concerns.
+## What This Means For Developers
+- if you need domain rules, look in `src/core/domain/`
+- if you need runtime wiring or shell behavior, look in `src/core/runtime/`
+- if you need execution contracts, look in `src/core/contracts/`
+- if you need adapter behavior, look in `src/docker/` or `src/deploy/`
 
-### 4. **New Major Refinements**
-
-#### Centralized Configuration & Discovery
-- Created `PROJECT_ROOT` discovery in `src/core/config.py`.
-- Implemented `get_services_config()` with internal caching to behave like a configuration module.
-- Eliminated manual path calculation (`Path(__file__).resolve()...`) across the codebase.
-
-#### Ansible Single Source of Truth
-- Moved all connection parameters from `inventory.ini` to `.env`.
-- Linked Ansible to `.env` via `group_vars/remote.yaml` lookups.
-- `inventory.ini` now acts strictly as a host registry, making the setup much cleaner and easier to manage.
-
-#### Fail-Fast Implementation
-- Standardized error handling across all modules.
-- The tool now validates the presence of `.env`, configuration files, and build context directories *before* attempting any expensive operations like image building or remote deployment.
-
-### 5. **Code Metrics**
-
-| File | Status | Change |
-|------|--------|--------|
-| `main.py` | Refactored | Orchestration only (delegated paths) |
-| `src/core/config.py` | Enhanced | Added caching and root discovery |
-| `src/core/shell.py` | Robust | Added exit-on-missing-env |
-| `src/docker/builder.py` | Validated | Added path existence checks |
-| `src/deploy/ansible.py` | Validated | Added config existence checks |
-
-### 6. **Design Patterns Applied**
-
-1. **Facade Pattern**: `main.py` acts as a simple facade.
-2. **Strategy Pattern**: Different execution flows (CLI vs. Interactive) handled separately.
-3. **Memoization**: Configuration loading is cached after first read.
-4. **Single Source of Truth**: All configuration originates from `.env`.
-5. **Fail-Fast**: Error detection is moved to the earliest possible stage.
-
-## Example Usage
-
-### After (clean delegation in `main.py`)
-```python
-def main():
-    load_env(PROJECT_ROOT / ".env")
-    
-    cli_result = parse_cli_args()
-    
-    if cli_result:
-        mode, arch, services = cli_result
-    else:
-        mode, arch, services = run_interactive_mode()
-    
-    execute_operation(mode, arch, services)
-```
-
-## Verification
-✅ All functionality preserved
-✅ Code runs successfully with `uv`
-✅ Immediate feedback on missing resources
-✅ Clean separation between config and code
-✅ Ready for future extensions
+## Result
+The repo is now easier to extend, easier to reason about, and much easier for a new developer to visualize from the filesystem alone.

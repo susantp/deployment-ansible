@@ -1,8 +1,8 @@
 # Operations
 
 ## Entrypoints
-- `uv run main.py` starts the normal operator flow.
-- `uv run main.py <mode> <arch> <service...>` runs non-interactively.
+- `uv run -m main` starts the normal operator flow.
+- `uv run -m main <mode> <arch> <service...>` runs non-interactively.
 - `uv run -m src.docker.builder <arch> <service...>` runs build-only logic.
 - `uv run -m src.deploy.ansible <image...>` runs deploy-only logic.
 
