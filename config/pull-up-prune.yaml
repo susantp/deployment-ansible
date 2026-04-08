@@ -4,13 +4,6 @@
   become: yes
 
   tasks:
-    - name: Change to deployment directory
-      tags: 
-        - cd
-      ansible.builtin.shell: cd {{ deploy_dir }}
-      args:
-        chdir: "{{ deploy_dir }}"
-
     - name: Pull specified Docker images
       tags: 
         - pull
