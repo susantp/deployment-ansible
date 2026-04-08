@@ -5,7 +5,10 @@ import subprocess
 import sys
 from pathlib import Path
 from src.core.config import get_services_config, PROJECT_ROOT
-from src.core.shell import run, load_env, console
+from src.core.domain.orchestration import BuildRequest
+from src.core.contracts.ports import RunCommandPort
+from src.core.runtime.shell import load_env, console, exit_with_message, fail
+from src.core.domain.policies import build_image_tag, get_platform_for_arch
 
 
 def get_env_or_default(key: str, default: str) -> str:
@@ -13,44 +16,43 @@ def get_env_or_default(key: str, default: str) -> str:
     return os.getenv(key, default)
 
 
-def build_service(service_name: str, platform_arch: str):
+def build_service(
+    request: BuildRequest,
+    run_command: RunCommandPort,
+) -> None:
     """Build and (optionally) push a single service image."""
-    platforms = {"amd": "linux/amd64/v2", "arm": "linux/arm64/v8"}
-    if platform_arch not in platforms:
-        console.print(f"[bold red]❌ Error: Unsupported architecture '{platform_arch}'[/bold red]")
-        console.print("[yellow]Please use 'amd' or 'arm'[/yellow]")
-        sys.exit(1)
-
-    platform = platforms[platform_arch]
+    service_name = request.service_name
+    platform_arch = request.arch
+    platform = get_platform_for_arch(platform_arch)
+    if platform is None:
+        fail(
+            f"Error: Unsupported architecture '{platform_arch}'",
+            "[yellow]Please use 'amd' or 'arm'[/yellow]",
+        )
 
     # Load services configuration
     config = get_services_config()
 
     services_data = config.get("services", {})
     if service_name not in services_data:
-        console.print(f"[bold red]❌ Error: Unknown service '{service_name}'[/bold red]")
-        sys.exit(1)
+        fail(f"Error: Unknown service '{service_name}'")
 
     # Get context path from env using the key from config
     env_var = services_data[service_name]
     context_path_str = get_env_or_default(env_var, "")
 
     if not context_path_str:
-        console.print(
-            f"[bold red]❌ Error: Build context path not set for {service_name}[/bold red]"
+        fail(
+            f"Error: Build context path not set for {service_name}",
+            f"[yellow]Please check if {env_var} is defined in .env[/yellow]",
         )
-        console.print(f"[yellow]Please check if {env_var} is defined in .env[/yellow]")
-        sys.exit(1)
 
     if not Path(context_path_str).exists():
-        console.print(
-            f"[bold red]❌ Error: Build context path does not exist: {context_path_str}[/bold red]"
-        )
-        sys.exit(1)
+        fail(f"Error: Build context path does not exist: {context_path_str}")
 
-    image_name = f"techbizz/{service_name}:latest-{platform_arch}"
+    image_name = build_image_tag(service_name, platform_arch)
 
-    run(
+    run_command(
         [
             "docker",
             "buildx",
@@ -64,18 +66,23 @@ def build_service(service_name: str, platform_arch: str):
     )
 
     if platform_arch == "amd":
-        run(["docker", "push", image_name], f"Pushing {image_name} to Docker Hub")
-        run(["docker", "image", "rm", image_name], f"Cleaning up local {image_name}")
+        run_command(
+            ["docker", "push", image_name],
+            f"Pushing {image_name} to Docker Hub",
+        )
+        run_command(
+            ["docker", "image", "rm", image_name],
+            f"Cleaning up local {image_name}",
+        )
 
 
-def main():
+def main() -> None:
     """Main entry point for direct script execution."""
     if len(sys.argv) < 3:
-        print(
-            "Usage: python -m src.docker.builder <platform_arch> <service1> [service2] ..."
+        fail(
+            "Usage: python -m src.docker.builder <platform_arch> <service1> [service2] ...",
+            "Example: python -m src.docker.builder amd vendor consumer frankenphp",
         )
-        print("Example: python -m src.docker.builder amd vendor consumer frankenphp")
-        sys.exit(1)
 
     load_env(PROJECT_ROOT / ".env")
 
@@ -84,18 +91,22 @@ def main():
 
     for service in services:
         try:
-            build_service(service, platform_arch)
-        except Exception as e:
-            print(f"❌ Failed to build {service}: {e}")
-            sys.exit(1)
+            from src.core.runtime.shell import run_command
 
-    print("\n🎉 All builds completed successfully.")
+            build_service(
+                BuildRequest(service_name=service, arch=platform_arch),
+                run_command=run_command,
+            )
+        except Exception as e:
+            fail(f"Failed to build {service}: {e}")
+
+    console.print("\n🎉 All builds completed successfully.")
 
 
 if __name__ == "__main__":
     try:
         main()
     except subprocess.CalledProcessError as e:
-        sys.exit(f"❌ Command failed (exit {e.returncode})")
+        exit_with_message(f"❌ Command failed (exit {e.returncode})", e.returncode)
     except KeyboardInterrupt:
-        sys.exit("\n🛑 Interrupted by user.")
+        exit_with_message("\n🛑 Interrupted by user.")

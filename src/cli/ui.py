@@ -2,7 +2,7 @@
 
 from typing import Dict, Optional
 from rich.prompt import Prompt
-from src.core.shell import console, print_header
+from src.core.runtime.shell import console, fail, print_header
 
 
 def display_menu_options(options: Dict[str, str], header: str|None = None):
@@ -66,9 +66,6 @@ def select_from_menu(
     selected = prompt_choice(options)
 
     if not selected:
-        console.print(f"[bold red]❌ {error_msg}[/bold red]")
-        import sys
-
-        sys.exit(1)
+        fail(error_msg)
 
     return selected

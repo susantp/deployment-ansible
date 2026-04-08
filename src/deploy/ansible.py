@@ -4,14 +4,19 @@ import json
 import subprocess
 import sys
 from src.core.config import PROJECT_ROOT
-from src.core.shell import load_env
+from src.core.domain.orchestration import DeployRequest
+from src.core.contracts.ports import RunCommandPort
+from src.core.runtime.shell import console, exit_with_message, fail, load_env
 
 
-def deploy_images(docker_images: list[str]):
+def deploy_images(
+    request: DeployRequest,
+    run_command: RunCommandPort,
+) -> None:
     """Deploy Docker images using Ansible.
 
     Args:
-        docker_images: List of Docker images to deploy
+        request: Deploy request containing image tags to deploy
     """
     # Project structure
     env_file = PROJECT_ROOT / ".env"
@@ -19,20 +24,16 @@ def deploy_images(docker_images: list[str]):
     inventory_file = config_dir / "inventory.ini"
     playbook_file = config_dir / "pull-up-prune.yaml"
 
-    from src.core.shell import console
-
     if not inventory_file.exists():
-        console.print(f"[bold red]❌ Error: Inventory file not found: {inventory_file}[/bold red]")
-        sys.exit(1)
+        fail(f"Error: Inventory file not found: {inventory_file}")
 
     if not playbook_file.exists():
-        console.print(f"[bold red]❌ Error: Playbook file not found: {playbook_file}[/bold red]")
-        sys.exit(1)
+        fail(f"Error: Playbook file not found: {playbook_file}")
 
     # Load env vars
     load_env(env_file)
 
-    extra_vars = {"docker_images": docker_images}
+    extra_vars = {"docker_images": list(request.images)}
 
     # Prepare ansible-playbook command
     cmd = [
@@ -44,26 +45,19 @@ def deploy_images(docker_images: list[str]):
         json.dumps(extra_vars),
     ]
 
-    print("🚀 Running:", " ".join(cmd))
-    try:
-        subprocess.run(cmd, check=True)
-        print("✅ Deployment completed successfully.")
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Deployment failed (exit {e.returncode})")
-        sys.exit(e.returncode)
+    run_command(cmd, "Deploying Docker images with Ansible")
 
 
-def main():
+def main() -> None:
     """Main entry point for direct script execution."""
     # Require at least one docker image
     if len(sys.argv) < 2:
-        print(
-            "⚠️  Usage: python -m src.deploy.ansible <image1[:tag]> [image2[:tag] ...]"
-        )
-        sys.exit(1)
+        fail("Usage: python -m src.deploy.ansible <image1[:tag]> [image2[:tag] ...]")
 
     docker_images = sys.argv[1:]
-    deploy_images(docker_images)
+    from src.core.runtime.shell import run_command
+
+    deploy_images(DeployRequest(images=tuple(docker_images)), run_command=run_command)
 
 
 if __name__ == "__main__":

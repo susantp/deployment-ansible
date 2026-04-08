@@ -1,25 +1,12 @@
 """Menu logic and interactive selection flows."""
 
-from typing import Tuple, List
+from dataclasses import dataclass
+from typing import Callable, Tuple, List
 from rich.prompt import Prompt
 from src.core.config import get_services_config
-from src.core.shell import print_header, console
+from src.core.domain.choices import OPERATION_CHOICES, PLATFORM_CHOICES, build_menu_options
+from src.core.runtime.shell import print_header, console, fail
 from src.cli.ui import select_from_menu
-
-# Define Presets
-PRESETS = {
-    "build-remote-{service}": {
-        "operation": "build",
-        "platform": "amd",
-        "service": "{service}",
-    },
-    "deploy-remote-{service}": {
-        "operation": "deploy",
-        "platform": "amd",
-        "service": "{service}",
-    },
-}
-
 
 def get_services() -> list[str]:
     """Load services list from config."""
@@ -43,21 +30,11 @@ def select_services() -> list[str]:
 
     for idx_str in selected_indices:
         if not idx_str.isdigit():
-            console.print(
-                f"[bold red]❌ Invalid service selection: '{idx_str}'[/bold red]"
-            )
-            import sys
-
-            sys.exit(1)
+            fail(f"Invalid service selection: '{idx_str}'")
 
         idx = int(idx_str) - 1
         if not 0 <= idx < len(services_list):
-            console.print(
-                f"[bold red]❌ Service selection out of range: '{idx_str}'[/bold red]"
-            )
-            import sys
-
-            sys.exit(1)
+            fail(f"Service selection out of range: '{idx_str}'")
 
         service = services_list[idx]
         if service not in seen_services:
@@ -69,8 +46,7 @@ def select_services() -> list[str]:
 
 def select_operation() -> str:
     """Prompt user to select operation mode."""
-    options = {"1": "build", "2": "deploy", "3": "both"}
-    display_options = {"1": "Build", "2": "Deploy", "3": "Both"}
+    options, display_options = build_menu_options(OPERATION_CHOICES)
     return select_from_menu(
         options,
         "Operation",
@@ -81,14 +57,50 @@ def select_operation() -> str:
 
 def select_platform() -> str:
     """Prompt user to select platform architecture."""
-    options = {"1": "amd", "2": "arm"}
-    display_options = {"1": "AMD (linux/amd64)", "2": "ARM (linux/arm64)"}
+    options, display_options = build_menu_options(PLATFORM_CHOICES)
     return select_from_menu(
         options,
         "Platform",
         "Invalid platform",
         display_options=display_options,
     )
+
+
+def select_required_services() -> list[str]:
+    """Select services and fail fast when none are chosen."""
+    services = select_services()
+    if not services:
+        fail("No valid services selected.")
+    return services
+
+
+ServiceResolver = Callable[[], list[str]]
+
+
+@dataclass(frozen=True)
+class PresetSpec:
+    """Declarative preset definition."""
+
+    name: str
+    operation: str
+    platform: str
+    resolve_services: ServiceResolver
+
+
+PRESETS: tuple[PresetSpec, ...] = (
+    PresetSpec(
+        name="build-remote-{service}",
+        operation="build",
+        platform="amd",
+        resolve_services=select_required_services,
+    ),
+    PresetSpec(
+        name="deploy-remote-{service}",
+        operation="deploy",
+        platform="amd",
+        resolve_services=select_required_services,
+    ),
+)
 
 
 def handle_manual_flow() -> Tuple[str, str, List[str]]:
@@ -99,24 +111,18 @@ def handle_manual_flow() -> Tuple[str, str, List[str]]:
     """
     mode = select_operation()
     arch = select_platform()
-    services = select_services()
-
-    if not services:
-        console.print("[bold red]❌ No valid services selected.[/bold red]")
-        import sys
-
-        sys.exit(1)
+    services = select_required_services()
 
     return mode, arch, services
 
 
 def handle_preset_flow(
-    preset_keys: List[str], choice: str
+    presets: tuple[PresetSpec, ...], choice: str
 ) -> Tuple[str, str, List[str]]:
     """Handle preset selection flow.
 
     Args:
-        preset_keys: List of available preset keys
+        presets: Available preset definitions
         choice: User's menu choice
 
     Returns:
@@ -124,32 +130,16 @@ def handle_preset_flow(
     """
     try:
         preset_idx = int(choice) - 1
-        if not (0 <= preset_idx < len(preset_keys)):
-            console.print("[bold red]❌ Invalid preset selection.[/bold red]")
-            import sys
+        if not (0 <= preset_idx < len(presets)):
+            fail("Invalid preset selection.")
 
-            sys.exit(1)
-
-        preset_name = preset_keys[preset_idx]
-        preset = PRESETS[preset_name]
-
-        mode = preset["operation"]
-        arch = preset["platform"]
-        svc_template = preset["service"]
-
-        # Handle dynamic service selection
-        if "{service}" in svc_template:
-            services = select_services()
-            if not services:
-                console.print("[bold red]❌ No valid services selected.[/bold red]")
-                import sys
-
-                sys.exit(1)
-        else:
-            services = [svc_template] if isinstance(svc_template, str) else svc_template
+        preset = presets[preset_idx]
+        mode = preset.operation
+        arch = preset.platform
+        services = preset.resolve_services()
 
         console.print(
-            f"\n[bold magenta]🚀 Running Preset: {preset_name}[/bold magenta]"
+            f"\n[bold magenta]🚀 Running Preset: {preset.name}[/bold magenta]"
         )
         console.print(f"   Operation: [cyan]{mode}[/cyan]")
         console.print(f"   Platform:  [cyan]{arch}[/cyan]")
@@ -158,7 +148,4 @@ def handle_preset_flow(
         return mode, arch, services
 
     except ValueError:
-        console.print("[bold red]❌ Invalid input.[/bold red]")
-        import sys
-
-        sys.exit(1)
+        fail("Invalid input.")

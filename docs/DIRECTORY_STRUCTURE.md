@@ -12,10 +12,21 @@ bazarify-ansible/
 │   │   ├── menu.py              # Interactive menu logic
 │   │   ├── ui.py                # Reusable UI components
 │   │   └── executor.py          # Operation orchestration
-│   ├── core/                     # Core utilities
+│   ├── core/                     # Shared configuration and internal boundaries
 │   │   ├── __init__.py
 │   │   ├── config.py            # YAML configuration loading
-│   │   └── shell.py             # Shell command execution
+│   │   ├── contracts/
+│   │   │   ├── __init__.py
+│   │   │   └── ports.py
+│   │   ├── domain/
+│   │   │   ├── __init__.py
+│   │   │   ├── choices.py
+│   │   │   ├── orchestration.py
+│   │   │   └── policies.py
+│   │   └── runtime/
+│   │       ├── __init__.py
+│   │       ├── services.py
+│   │       └── shell.py
 │   ├── docker/                   # Docker operations
 │   │   ├── __init__.py
 │   │   └── builder.py           # Image building logic
@@ -45,11 +56,16 @@ bazarify-ansible/
 - **`ui.py`**: Reusable UI components (menus, prompts)
 - **`executor.py`**: Orchestrate build/deploy operations
 
-### `src/core/` - Core Utilities
-**Purpose**: Shared utilities used across the application
+### `src/core/` - Shared Internal Boundaries
+**Purpose**: Shared configuration plus domain, contract, and runtime boundaries
 
 - **`config.py`**: YAML configuration file loading
-- **`shell.py`**: Shell command execution, env loading, UI helpers
+- **`contracts/ports.py`**: Dependency contracts used by orchestration and adapters
+- **`domain/choices.py`**: Canonical operation and platform choices
+- **`domain/orchestration.py`**: Pure build/deploy request models and planning
+- **`domain/policies.py`**: Image-tag and architecture policy
+- **`runtime/services.py`**: Concrete dependency wiring
+- **`runtime/shell.py`**: Shell command execution, env loading, UI helpers
 
 ### `src/docker/` - Docker Operations
 **Purpose**: Docker image building and management
@@ -118,7 +134,7 @@ from services.executor import execute_operation
 
 ### After
 ```python
-from src.core.shell import run
+from src.core.runtime.shell import run
 from src.core.config import get_services_config, PROJECT_ROOT
 from src.cli.menu import PRESETS
 from src.cli.executor import execute_operation

@@ -1,12 +1,10 @@
 """Configuration loading utilities."""
 
-import sys
 from pathlib import Path
 from typing import Optional, Any
 import yaml
-from rich.console import Console
+from src.core.runtime.shell import fail
 
-console = Console()
 
 # Discovery of Project Root
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -19,17 +17,13 @@ _cached_config: Optional[dict[str, Any]] = None
 def load_config(config_path: Path) -> dict:
     """Load configuration from a YAML file."""
     if not config_path.exists():
-        console.print(
-            f"[bold red]❌ Configuration file not found at {config_path}[/bold red]"
-        )
-        sys.exit(1)
+        fail(f"Configuration file not found at {config_path}")
 
     with config_path.open() as f:
         try:
             return yaml.safe_load(f)
         except yaml.YAMLError as e:
-            console.print(f"[bold red]❌ Failed to parse YAML: {e}[/bold red]")
-            sys.exit(1)
+            fail(f"Failed to parse YAML: {e}")
 
 
 def get_services_config() -> dict[str, Any]:
