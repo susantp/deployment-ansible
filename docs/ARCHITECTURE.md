@@ -42,6 +42,12 @@ main.py
 - `src/cli/executor.py`
   - coordinates build and deploy execution from planned requests
 
+### GUI
+- `src/gui/app.py`
+  - collects user selections visually
+  - launches the existing non-interactive command path
+  - streams live stdout/stderr into the GUI
+
 ### Core Domain
 - `src/core/domain/choices.py`
   - canonical operation and platform choices
@@ -113,6 +119,7 @@ Execution is adapter work:
 There are two input surfaces:
 - interactive mode
 - CLI mode
+- GUI wrapper mode
 
 They now share the same canonical choice registry in `src/core/domain/choices.py`.
 

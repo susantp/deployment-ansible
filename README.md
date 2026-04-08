@@ -99,6 +99,16 @@ ansible remote -i config/inventory.ini -m ping
 uv run -m main
 ```
 
+### Local GUI wrapper
+```sh
+.venv/bin/python -m src.gui.app
+```
+
+The GUI is a thin wrapper:
+- it collects mode, architecture, and service selections visually
+- it runs the existing non-interactive command path through the local `.venv` interpreter
+- it streams live process output into the window
+
 ### Non-interactive mode
 ```sh
 uv run -m main <mode> <arch> <service...>
@@ -132,6 +142,7 @@ If you are new to the repo, this order is usually fastest:
 Then inspect:
 - `main.py`
 - `src/cli/`
+- `src/gui/`
 - `src/core/domain/`
 - `src/core/runtime/`
 
